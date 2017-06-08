@@ -32,8 +32,6 @@ def get_entities():
         first = True
         yield "["
         for event, elem in ET.iterparse(proc.stdout):
-            if not first:
-                yield ","
             if elem.tag == '{http://www.mediawiki.org/xml/export-0.6/}page':
                 text = elem.find('{http://www.mediawiki.org/xml/export-0.6/}revision').find('{http://www.mediawiki.org/xml/export-0.6/}text').text
                 parsed_text = wtp.parse(text) if text else None
@@ -43,6 +41,8 @@ def get_entities():
                     "templates": [{ "name": x.name, "arguments": [{ "name": y.name, "value": y.value} for y in x.arguments] } for x in parsed_text.templates] if parsed_text else None,
                     "wikilinks": [{ "target": x.target, "text": x.text } for x in parsed_text.wikilinks] if parsed_text else None
                 }
+                if not first:
+                    yield ","
                 yield(json.dumps(entity))
                 first = False
                 elem.clear()
