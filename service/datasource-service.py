@@ -1,14 +1,15 @@
 import json
 import logging
-import lzma
 import os
 import urllib
 import xml.etree.ElementTree as ET
+import subprocess
 
 import wikitextparser as wtp
 from flask import Flask, Response
 
 name = os.environ["WIKIA_NAME"]
+devnull = open(os.devnull, 'w')
 
 app = Flask(__name__)
 
@@ -19,16 +20,18 @@ def get_entities():
 
     def generate():
         url = "http://s3.amazonaws.com/wikia_xml_dumps/%s/%s/%s_pages_current.xml.7z" % (name[:1], name[:2], name)
-        logger.debug("Downloading '%s'" % url)
+        logger.info("Downloading '%s'.." % url)
         # can't decompress 7z as stream as it requires seeks
         local_filename, headers = urllib.request.urlretrieve(url)
-        logger.debug("Downloaded to '%s'" % local_filename)
+        logger.info("Downloaded to '%s'" % local_filename)
 
-        logger.debug("Decompressing")
-        decompressed_source = lzma.LZMAFile(local_filename)
+        logger.info("Decompressing..")
+        # requires 7z executable
+        cmd = ['7z', 'e', '-so', local_filename]
+        proc = subprocess.Popen(cmd, stderr=devnull, stdout=subprocess.PIPE)
         first = True
         yield "["
-        for event, elem in ET.iterparse(decompressed_source):
+        for event, elem in ET.iterparse(proc.stdout):
             if not first:
                 yield ","
             if elem.tag == '{http://www.mediawiki.org/xml/export-0.6/}page':
@@ -44,10 +47,9 @@ def get_entities():
                 first = False
                 elem.clear()
         yield "]"
-        decompressed_source.close()
-        logger.debug("Decompression complete")
+        logger.info("Decompression complete")
         os.remove(local_filename)
-        logger.debug("Removed file '%s'" % local_filename)
+        logger.info("Removed file '%s'" % local_filename)
 
     return Response(generate(), mimetype='application/json')
 
