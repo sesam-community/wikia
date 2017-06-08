@@ -1,0 +1,3 @@
+Flask==0.11
+wikitextparser==0.15.1
+requests==2.17.3
